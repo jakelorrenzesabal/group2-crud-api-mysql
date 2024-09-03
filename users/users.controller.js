@@ -12,7 +12,7 @@ router.post('/', createSchema, create);
 router.put('/:id', updateSchema, update);
 router.delete('/:id', _delete);
 
-router.get('/search/:email', getByEmail);
+router.get('/search', searchUsers);
 router.put('/:id/role', updateRoleSchema, updateRole);
 router.get('/:id/permissions', getById);
 
@@ -33,6 +33,18 @@ function create(req, res, next) {
     userService.create(req.body)
     .then(() => res.json({ message: 'User created'}))
     .catch(next);
+}
+function searchUsers(req, res, next) {
+    const query = req.query; // Get query parameters
+    userService.search(query)
+        .then(users => {
+            if (users.length === 0) {
+                res.status(404).json({ message: 'No jake found' });
+            } else {
+                res.json(users);
+            }
+        })
+        .catch(next);
 }
 function update(req, res, next) {
     userService.update(req.params.id, req.body)
@@ -71,11 +83,7 @@ function updateSchema(req, res, next) {
     validateRequest(req, next, schema);
 }
 //=====================================================
-function getByEmail(req, res, next) {
-    userService.getByEmail(req.params.email)
-    .then(user => res.json(user))
-    .catch(next);
-}
+
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
     .then(() => res.json({ message: 'Role updated' }))
