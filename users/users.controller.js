@@ -5,44 +5,71 @@ const validateRequest = require('_middleware/validate-request');
 const Role = require('_helpers/role');
 const userService = require('./user.service');
 
-
-router.get('/', getAll);
+router.get('/', getAll); 
+router.get('/search', search);
+router.get('/searchAll', searchAll);  
 router.get('/:id', getById);
 router.post('/', createSchema, create);
 router.put('/:id', updateSchema, update);
 router.delete('/:id', _delete);
 
-router.get('/search/:email', getByEmail);
 router.put('/:id/role', updateRoleSchema, updateRole);
 router.get('/:id/permissions', getById);
 
-
 module.exports = router;
+
+function search(req, res, next) {
+    const { email, title, firstName, lastName, role } = req.query;
+
+    // Check if at least one parameter is provided
+    if (!email && !title && !firstName && !lastName && !role) {
+        return res.status(400).json({ message: 'At least one search term is required' });
+    }
+
+    userService.search({ email, title, firstName, lastName, role })
+        .then(users => res.json(users))
+        .catch(next);
+}
+function searchAll(req, res, next) {
+    const query = req.query.query; 
+    
+    if (!query) {
+        return res.status(400).json({ message: 'Search term is required' });
+    }
+
+    userService.searchAll(query)
+        .then(users => res.json(users))
+        .catch(next);
+}
 
 function getAll(req, res, next) {
     userService.getAll()
-    .then(users => res.json(users))
-    .catch(next);
+        .then(users => res.json(users))
+        .catch(next);
 }
+
 function getById(req, res, next) {
     userService.getById(req.params.id)
-    .then(user => res.json(user))
-    .catch(next);
+        .then(user => res.json(user))
+        .catch(next);
 }
+
 function create(req, res, next) {
     userService.create(req.body)
-    .then(() => res.json({ message: 'User created'}))
-    .catch(next);
+        .then(() => res.json({ message: 'User created' }))
+        .catch(next);
 }
+
 function update(req, res, next) {
     userService.update(req.params.id, req.body)
-    .then(() => res.json({ message: 'User updated' }))
-    .catch(next);
+        .then(() => res.json({ message: 'User updated' }))
+        .catch(next);
 }
+
 function _delete(req, res, next) {
     userService.delete(req.params.id)
-    .then(() => res.json({ message: 'User deleted' }))
-    .catch(next);
+        .then(() => res.json({ message: 'User deleted' }))
+        .catch(next);
 }
 function createSchema(req, res, next) {
         const schema = Joi.object({
@@ -71,11 +98,7 @@ function updateSchema(req, res, next) {
     validateRequest(req, next, schema);
 }
 //=====================================================
-function getByEmail(req, res, next) {
-    userService.getByEmail(req.params.email)
-    .then(user => res.json(user))
-    .catch(next);
-}
+
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
     .then(() => res.json({ message: 'Role updated' }))
@@ -87,3 +110,5 @@ function updateRoleSchema(req, res, next) {
     })
     validateRequest(req, next, schema);
 }
+
+
