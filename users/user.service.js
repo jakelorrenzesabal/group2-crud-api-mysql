@@ -8,7 +8,8 @@ module.exports = {
     create,
     update,
     delete: _delete,
-    search
+    search,
+    searchAll
 };
 
 async function getAll() {
@@ -55,9 +56,7 @@ async function getUser(id) {
     if (!user) throw 'User ad found';
     return user;
 }
-
-
-async function search(query) {
+async function searchAll(query) {
     // Perform a case-insensitive search across multiple fields
     const users = await db.User.findAll({
         where: {
@@ -72,5 +71,33 @@ async function search(query) {
     });
 
     if (users.length === 0) throw new Error('No users found matching the search criteria');
+    return users;
+}
+
+async function search(params) {
+    // Build dynamic query
+    const whereClause = {};
+
+    if (params.email) {
+        whereClause.email = { [Op.like]: `%${params.email}%` };
+    }
+    if (params.title) {
+        whereClause.title = { [Op.like]: `%${params.title}%` };
+    }
+    if (params.firstName) {
+        whereClause.firstName = { [Op.like]: `%${params.firstName}%` };
+    }
+    if (params.lastName) {
+        whereClause.lastName = { [Op.like]: `%${params.lastName}%` };
+    }
+    if (params.role) {
+        whereClause.role = { [Op.like]: `%${params.role}%` };
+    }
+    
+    const users = await db.User.findAll({
+        where: whereClause
+    });
+
+    if (users.length === 0) throw new Error('No users found matching the search jake');
     return users;
 }

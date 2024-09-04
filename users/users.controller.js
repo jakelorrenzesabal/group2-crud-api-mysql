@@ -5,8 +5,9 @@ const validateRequest = require('_middleware/validate-request');
 const Role = require('_helpers/role');
 const userService = require('./user.service');
 
-router.get('/', getAll);
-router.get('/search', search);  
+router.get('/', getAll); 
+router.get('/search', search);
+router.get('/searchAll', searchAll);  
 router.get('/:id', getById);
 router.post('/', createSchema, create);
 router.put('/:id', updateSchema, update);
@@ -18,13 +19,24 @@ router.get('/:id/permissions', getById);
 module.exports = router;
 
 function search(req, res, next) {
-    const query = req.query.query; // Extract the search query from the query parameters
+    const { email, title, firstName, lastName, role } = req.query;
+
+    if ({ email, title, firstName, lastName, role }) {
+        return res.status(400).json({ message: 'Search term is required' });
+    }
+
+    userService.search({ email, title, firstName, lastName, role })
+        .then(users => res.json(users))
+        .catch(next);
+}
+function searchAll(req, res, next) {
+    const query = req.query.query; 
     
     if (!query) {
         return res.status(400).json({ message: 'Search term is required' });
     }
 
-    userService.search(query)
+    userService.searchAll(query)
         .then(users => res.json(users))
         .catch(next);
 }
