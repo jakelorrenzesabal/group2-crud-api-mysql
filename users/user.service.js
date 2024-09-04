@@ -93,11 +93,11 @@ async function search(params) {
     if (params.role) {
         whereClause.role = { [Op.like]: `%${params.role}%` };
     }
-    
+
     const users = await db.User.findAll({
         where: whereClause
     });
 
-    if (users.length === 0) throw new Error('No users found matching the search jake');
+    if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
 }

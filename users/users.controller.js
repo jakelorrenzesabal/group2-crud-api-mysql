@@ -21,8 +21,9 @@ module.exports = router;
 function search(req, res, next) {
     const { email, title, firstName, lastName, role } = req.query;
 
-    if ({ email, title, firstName, lastName, role }) {
-        return res.status(400).json({ message: 'Search term is required' });
+    // Check if at least one parameter is provided
+    if (!email && !title && !firstName && !lastName && !role) {
+        return res.status(400).json({ message: 'At least one search term is required' });
     }
 
     userService.search({ email, title, firstName, lastName, role })
