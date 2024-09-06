@@ -10,7 +10,8 @@ function model(sequelize) {
         firstName: { type: DataTypes.STRING, allowNull: false },
         lastName: { type: DataTypes.STRING, allowNull: false },
         role: { type: DataTypes.STRING, allowNull: false },
-        profilePic: { type: DataTypes.STRING, allowNull: false }
+        profilePic: { type: DataTypes.STRING, allowNull: false },
+        isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
     };
     
     const options = {

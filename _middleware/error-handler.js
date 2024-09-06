@@ -2,7 +2,10 @@ module.exports = errorHandler;
 
 function errorHandler(err, req, res, next) {
     switch (true) {
-        case typeof err === 'string':
+        case err === 'Account is deactivated':
+            return res.status(403).json({ message: err });
+        
+            case typeof err === 'string':
 
             const is404 = err.toLowerCase().endsWith('not found');
             const statusCode = is404 ? 404 : 400;
