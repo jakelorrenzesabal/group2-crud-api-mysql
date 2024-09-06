@@ -18,30 +18,6 @@ router.get('/:id/permissions', getById);
 
 module.exports = router;
 
-function search(req, res, next) {
-    const { email, title, firstName, lastName, role } = req.query;
-
-    // Check if at least one parameter is provided
-    if (!email && !title && !firstName && !lastName && !role) {
-        return res.status(400).json({ message: 'At least one search term is required' });
-    }
-
-    userService.search({ email, title, firstName, lastName, role })
-        .then(users => res.json(users))
-        .catch(next);
-}
-function searchAll(req, res, next) {
-    const query = req.query.query; 
-    
-    if (!query) {
-        return res.status(400).json({ message: 'Search term is required' });
-    }
-
-    userService.searchAll(query)
-        .then(users => res.json(users))
-        .catch(next);
-}
-
 function getAll(req, res, next) {
     userService.getAll()
         .then(users => res.json(users))
@@ -97,7 +73,8 @@ function updateSchema(req, res, next) {
     }).with('password', 'confirmPassword');
     validateRequest(req, next, schema);
 }
-//=====================================================
+
+//==================================== Update role route ===============================================
 
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
@@ -109,6 +86,31 @@ function updateRoleSchema(req, res, next) {
         role: Joi.string().valid(Role.Admin, Role.User).empty('')
     })
     validateRequest(req, next, schema);
+}
+
+//--------------------------------- search route ------------------------------------------
+
+function search(req, res, next) {
+    const { email, title, firstName, lastName, role, fullName } = req.query;
+
+    if (!email && !title && !firstName && !lastName && !role && !fullName) {
+        return res.status(400).json({ message: 'At least one search term is required' });
+    }
+
+    userService.search({ email, title, firstName, lastName, role, fullName })
+        .then(users => res.json(users))  // 'users' will now include 'fullName'
+        .catch(next);
+}
+function searchAll(req, res, next) {
+    const query = req.query.query; 
+    
+    if (!query) {
+        return res.status(400).json({ message: 'Search term is required' });
+    }
+
+    userService.searchAll(query)
+        .then(users => res.json(users))
+        .catch(next);
 }
 
 
