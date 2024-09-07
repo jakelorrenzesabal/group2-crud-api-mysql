@@ -9,7 +9,10 @@ module.exports = {
     update,
     delete: _delete,
     search,
-    searchAll
+    searchAll,
+
+    getPreferences,
+    updatePreferences
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -118,4 +121,18 @@ async function search(params) {
 
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
+}
+
+//===============Preferences Get & Update Function===========================
+async function getPreferences(id, params) {
+    const preferences = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'theme', 'notifications', 'language' ] });
+    if (!preferences) throw 'User not found';
+    return preferences;
+}
+async function updatePreferences(id, params) {
+    const preferences = await db.User.findOne({ where: { id } });
+    if (!preferences) throw 'User not found';
+
+    Object.assign(preferences, params);
+    await preferences.save();
 }

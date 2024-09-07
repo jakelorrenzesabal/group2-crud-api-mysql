@@ -16,6 +16,10 @@ router.delete('/:id', _delete);
 router.put('/:id/role', updateRoleSchema, updateRole);
 router.get('/:id/permissions', getById);
 
+router.get('/:id/preferences', getPreferences);
+router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
+
+
 module.exports = router;
 
 function getAll(req, res, next) {
@@ -75,7 +79,6 @@ function updateSchema(req, res, next) {
 }
 
 //==================================== Update role route ===============================================
-
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
     .then(() => res.json({ message: 'Role updated' }))
@@ -85,6 +88,26 @@ function updateRoleSchema(req, res, next) {
     const schema = Joi.object({
         role: Joi.string().valid(Role.Admin, Role.User).empty('')
     })
+    validateRequest(req, next, schema);
+}
+
+//====================Preferences Router Function=========================
+function getPreferences(req, res, next) {
+    userService.getPreferences(req.params.id)
+        .then(preferences => res.json(preferences))
+        .catch(next);
+}
+function updatePreferences(req, res, next) {
+    userService.updatePreferences(req.params.id, req.body)
+        .then(() => res.json({ message: 'Preferences updated successfully' }))
+        .catch(next);
+}
+function updatePreferencesSchema(req, res, next) {
+    const schema = Joi.object({
+        theme: Joi.string().valid(Actions.Theme1, Actions.Theme2).optional(),
+        notifications: Joi.boolean().optional(),
+        language: Joi.string().valid(Actions.Lang1, Actions.Lang2).optional()
+    });
     validateRequest(req, next, schema);
 }
 
