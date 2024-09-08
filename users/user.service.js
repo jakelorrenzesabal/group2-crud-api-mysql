@@ -9,7 +9,10 @@ module.exports = {
     update,
     delete: _delete,
     search,
-    searchAll
+    searchAll,
+    deactivate,
+    reactivate,
+    authenticate
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -118,4 +121,45 @@ async function search(params) {
 
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
+}
+
+//================================================ Deactivate & Reactivate =========================================
+
+async function deactivate(id) {
+    const user = await getUser(id);
+    user.isActive = false;
+    await user.save();
+}
+
+async function reactivate(id) {
+    const user = await getUser(id);
+    user.isActive = true;
+    await user.save();
+}
+
+async function authenticate(email, password) {
+    if (!email || !password) {
+        throw 'Email and password are required';
+    }
+
+    try {
+        const user = await db.User.scope('withHash').findOne({ where: { email } });
+        
+        if (!user) {
+            throw 'User not found';
+        }
+
+        if (!user.isActive) {
+            throw 'Account is deactivated';
+        }
+
+        const isPasswordMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordMatch) {
+            throw 'Invalid password';
+        }
+
+        return user;
+    } catch (error) {
+        throw `Authentication error: ${error.message || error}`;
+    }
 }

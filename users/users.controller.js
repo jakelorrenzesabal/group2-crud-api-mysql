@@ -16,6 +16,10 @@ router.delete('/:id', _delete);
 router.put('/:id/role', updateRoleSchema, updateRole);
 router.get('/:id/permissions', getById);
 
+router.post('/login', validateRequestBody, login);
+router.put('/:id/deactivate', deactivateUser);
+router.put('/:id/reactivate', reactivateUser);
+
 module.exports = router;
 
 function getAll(req, res, next) {
@@ -113,4 +117,33 @@ function searchAll(req, res, next) {
         .catch(next);
 }
 
+//========================================== Deactivate & Reactivate =====================================================
 
+function deactivateUser(req, res, next) {
+    userService.deactivate(req.params.id)
+        .then(() => res.json({ message: 'User deactivated' }))
+        .catch(next);
+}
+
+function reactivateUser(req, res, next) {
+    userService.reactivate(req.params.id)
+        .then(() => res.json({ message: 'User reactivated' }))
+        .catch(next);
+}
+
+function validateRequestBody(req, res, next) {
+    validateRequest(req, next, loginSchema);
+    
+}
+const loginSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required()
+});
+
+function login(req, res, next) {
+    const { email, password } = req.body;
+
+    userService.authenticate(email, password)
+        .then(user => res.json({ message: 'Login successful', user }))
+        .catch(next);
+}
