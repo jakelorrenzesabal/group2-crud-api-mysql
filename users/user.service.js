@@ -115,6 +115,25 @@ async function search(params) {
         whereClause.role = { [Op.like]: `%${params.role}%` };
     }
 
+    if (params.status) {
+        if (params.status === 'active') {
+            whereClause.isActive = true;
+        } else if (params.status === 'inactive') {
+            whereClause.isActive = false;
+        } else {
+            throw new Error('Invalid status value. Use "active" or "inactive".');
+        }
+    }
+
+    // Search by dateCreated (e.g., createdAt)
+    if (params.dateCreated) {
+        whereClause.createdAt = { [Op.eq]: new Date(params.dateCreated) }; 
+    }
+
+    if (params.lastDateLogin) {
+        whereClause.lastDateLogin = { [Op.eq]: new Date(params.lastDateLogin) }; 
+    }
+
     const users = await db.User.findAll({
         where: whereClause
     });
@@ -157,9 +176,12 @@ async function authenticate(email, password) {
         if (!isPasswordMatch) {
             throw 'Invalid password';
         }
+        user.lastDateLogin = new Date();  // Set current date and time
+        await user.save();
 
         return user;
     } catch (error) {
         throw `Authentication error: ${error.message || error}`;
     }
 }
+//================================== logouts ========================================

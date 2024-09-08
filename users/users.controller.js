@@ -95,13 +95,13 @@ function updateRoleSchema(req, res, next) {
 //--------------------------------- search route ------------------------------------------
 
 function search(req, res, next) {
-    const { email, title, firstName, lastName, role, fullName } = req.query;
+    const { email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin } = req.query;
 
-    if (!email && !title && !firstName && !lastName && !role && !fullName) {
+    if (!email && !title && !firstName && !lastName && !role && !fullName && !status && !dateCreated && !lastDateLogin) {
         return res.status(400).json({ message: 'At least one search term is required' });
     }
 
-    userService.search({ email, title, firstName, lastName, role, fullName })
+    userService.search({ email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin })
         .then(users => res.json(users))  // 'users' will now include 'fullName'
         .catch(next);
 }

@@ -11,6 +11,7 @@ function model(sequelize) {
         lastName: { type: DataTypes.STRING, allowNull: false },
         role: { type: DataTypes.STRING, allowNull: false },
         profilePic: { type: DataTypes.STRING, allowNull: false },
+        lastDateLogin: { type: DataTypes.DATE, allowNull: true },
         isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
     };
     
