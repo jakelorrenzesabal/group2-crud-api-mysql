@@ -19,6 +19,8 @@ router.get('/:id/permissions', getById);
 router.get('/:id/preferences', getPreferences);
 router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
 
+router.put('/:id/password', changePassSchema, changePass);
+
 
 module.exports = router;
 
@@ -27,25 +29,21 @@ function getAll(req, res, next) {
         .then(users => res.json(users))
         .catch(next);
 }
-
 function getById(req, res, next) {
     userService.getById(req.params.id)
         .then(user => res.json(user))
         .catch(next);
 }
-
 function create(req, res, next) {
     userService.create(req.body)
         .then(() => res.json({ message: 'User created' }))
         .catch(next);
 }
-
 function update(req, res, next) {
     userService.update(req.params.id, req.body)
         .then(() => res.json({ message: 'User updated' }))
         .catch(next);
 }
-
 function _delete(req, res, next) {
     userService.delete(req.params.id)
         .then(() => res.json({ message: 'User deleted' }))
@@ -108,6 +106,21 @@ function updatePreferencesSchema(req, res, next) {
         notifications: Joi.boolean().optional(),
         language: Joi.string().valid(Actions.Lang1, Actions.Lang2).optional()
     });
+    validateRequest(req, next, schema);
+}
+
+//===================Change Password Function=======================================
+function changePass(req, res, next) {
+    userService.changePass(req.params.id, req.body)
+    .then(() => res.json({ message: 'Password updated' }))
+    .catch(next);
+}
+function changePassSchema(req, res, next) {
+    const schema = Joi.object({
+        currentPassword: Joi.string().min(6).required(),
+        newPassword: Joi.string().min(6).empty('').required(),
+        confirmPassword: Joi.string().valid(Joi.ref('newPassword')).empty('').required()
+    })
     validateRequest(req, next, schema);
 }
 

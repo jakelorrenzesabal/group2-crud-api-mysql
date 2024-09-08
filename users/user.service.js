@@ -12,7 +12,9 @@ module.exports = {
     searchAll,
 
     getPreferences,
-    updatePreferences
+    updatePreferences,
+
+    changePass
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -135,4 +137,15 @@ async function updatePreferences(id, params) {
 
     Object.assign(preferences, params);
     await preferences.save();
+}
+//===================Change Password function==============================
+async function changePass(id, params) {
+    const user = await db.User.scope('withHash').findOne({ where: { id } });
+    if (!user) throw 'User does not exist';
+
+    const isPasswordValid = await bcrypt.compare(params.currentPassword, user.passwordHash);
+    if (!isPasswordValid) throw 'Current password is incorrect';
+    user.passwordHash = await bcrypt.hash(params.newPassword, 10);
+
+    await user.save();
 }
