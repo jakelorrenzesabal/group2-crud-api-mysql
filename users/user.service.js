@@ -14,7 +14,9 @@ module.exports = {
     getPreferences,
     updatePreferences,
 
-    changePass
+    changePass,
+
+    login
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -148,4 +150,16 @@ async function changePass(id, params) {
     user.passwordHash = await bcrypt.hash(params.newPassword, 10);
 
     await user.save();
+}
+//===================Login wht Token function==============================
+async function login(params) {
+    const user = await db.User.scope('withHash').findOne({ where: { email: params.email } });
+    if (!user) throw 'User does not exist';
+
+    const isPasswordValid = await bcrypt.compare(params.password, user.passwordHash);
+    if (!isPasswordValid) throw 'Password Incorrect';
+
+    const token = jwt.sign({ id: params.id, email: params.email, firstName: params.firstName }, 
+        process.env.SECRET, {});
+    return { token };
 }

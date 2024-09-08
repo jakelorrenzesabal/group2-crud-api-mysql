@@ -21,6 +21,8 @@ router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
 
 router.put('/:id/password', changePassSchema, changePass);
 
+router.post('/login', loginSchema, login);
+
 
 module.exports = router;
 
@@ -88,7 +90,6 @@ function updateRoleSchema(req, res, next) {
     })
     validateRequest(req, next, schema);
 }
-
 //====================Preferences Router Function=========================
 function getPreferences(req, res, next) {
     userService.getPreferences(req.params.id)
@@ -121,6 +122,19 @@ function changePassSchema(req, res, next) {
         newPassword: Joi.string().min(6).empty('').required(),
         confirmPassword: Joi.string().valid(Joi.ref('newPassword')).empty('').required()
     })
+    validateRequest(req, next, schema);
+}
+//====================Login with Token Function=========================
+function login(req, res, next) {
+    userService.login(req.body)
+        .then(({ token }) => res.json({ token }))
+        .catch(next);
+}
+function loginSchema(req, res, next) {
+    const schema = Joi.object({
+        email: Joi.string().email().required(),
+        password: Joi.string().required()
+    });
     validateRequest(req, next, schema);
 }
 
