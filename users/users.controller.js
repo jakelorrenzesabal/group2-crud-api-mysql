@@ -22,6 +22,7 @@ router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
 router.put('/:id/password', changePassSchema, changePass);
 
 router.post('/login', loginSchema, login);
+router.get('/:id/activity', getActivities);
 
 
 module.exports = router;
@@ -136,6 +137,17 @@ function loginSchema(req, res, next) {
         password: Joi.string().required()
     });
     validateRequest(req, next, schema);
+}
+//===================Logging Function=======================================
+function getActivities(req, res, next) {
+    const filters = {
+        action: req.query.action,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate
+    };
+    userService.getUserActivities(req.params.id, filters)
+        .then(activities => res.json(activities))
+        .catch(next);
 }
 
 //--------------------------------- search route ------------------------------------------

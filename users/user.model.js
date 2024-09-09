@@ -18,6 +18,9 @@ function model(sequelize) {
         notifications: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: true },
         language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
 
+        //======For Logging=================
+        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] }
+
     };
     
     const options = {

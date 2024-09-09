@@ -16,7 +16,9 @@ module.exports = {
 
     changePass,
 
-    login
+    login,
+    logActivity,
+    getUserActivities
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -161,5 +163,54 @@ async function login(params) {
 
     const token = jwt.sign({ id: params.id, email: params.email, firstName: params.firstName }, 
         process.env.SECRET, {});
+
+    await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+
     return { token };
+}
+//===================Logging function==============================
+async function logActivity(userId, action, ipAddress, browserInfo) {
+    try {
+        const user = await db.User.findByPk(userId);
+        if (!user) throw 'User not found';
+
+        // Create a new log entry
+        const logEntry = {
+            action,
+            timestamp: new Date(),
+            ipAddress,
+            browserInfo
+        };
+
+        // Update the user's activity logs
+        const updatedLogs = user.activityLogs || [];
+        updatedLogs.push(logEntry);
+
+        // Limit the log size if needed (e.g., keep only the latest 50 logs)
+        if (updatedLogs.length > 50) {
+            updatedLogs.shift(); // Remove the oldest log entry
+        }
+
+        user.activityLogs = updatedLogs;
+        await user.save();
+    } catch (error) {
+        console.error('Error logging activity:', error);
+        throw error;
+    }
+}
+async function getUserActivities(userId, filters = {}) {
+    const user = await getUser(userId);
+    let activities = user.activityLogs || [];
+
+    // Apply optional filters such as action type and timestamp range
+    if (filters.action) {
+        activities = activities.filter(log => log.action === filters.action);
+    }
+    if (filters.startDate || filters.endDate) {
+        const startDate = filters.startDate ? new Date(filters.startDate) : new Date(0);
+        const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+        activities = activities.filter(log => new Date(log.timestamp) >= startDate && new Date(log.timestamp) <= endDate);
+    }
+
+    return activities;
 }
