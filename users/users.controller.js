@@ -16,9 +16,17 @@ router.delete('/:id', _delete);
 router.put('/:id/role', updateRoleSchema, updateRole);
 router.get('/:id/permissions', getById);
 
-router.post('/login', validateRequestBody, login);
+router.get('/:id/preferences', getPreferences);
+router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
+
+router.put('/:id/password', changePassSchema, changePass);
+
+router.post('/login', loginSchema, login);
+router.get('/:id/activity', getActivities);
+
 router.put('/:id/deactivate', deactivateUser);
 router.put('/:id/reactivate', reactivateUser);
+
 
 module.exports = router;
 
@@ -27,25 +35,21 @@ function getAll(req, res, next) {
         .then(users => res.json(users))
         .catch(next);
 }
-
 function getById(req, res, next) {
     userService.getById(req.params.id)
         .then(user => res.json(user))
         .catch(next);
 }
-
 function create(req, res, next) {
     userService.create(req.body)
         .then(() => res.json({ message: 'User created' }))
         .catch(next);
 }
-
 function update(req, res, next) {
     userService.update(req.params.id, req.body)
         .then(() => res.json({ message: 'User updated' }))
         .catch(next);
 }
-
 function _delete(req, res, next) {
     userService.delete(req.params.id)
         .then(() => res.json({ message: 'User deleted' }))
@@ -79,7 +83,6 @@ function updateSchema(req, res, next) {
 }
 
 //==================================== Update role route ===============================================
-
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
     .then(() => res.json({ message: 'Role updated' }))
@@ -91,17 +94,87 @@ function updateRoleSchema(req, res, next) {
     })
     validateRequest(req, next, schema);
 }
+//====================Preferences Router Function=========================
+function getPreferences(req, res, next) {
+    userService.getPreferences(req.params.id)
+        .then(preferences => res.json(preferences))
+        .catch(next);
+}
+function updatePreferences(req, res, next) {
+    userService.updatePreferences(req.params.id, req.body)
+        .then(() => res.json({ message: 'Preferences updated successfully' }))
+        .catch(next);
+}
+function updatePreferencesSchema(req, res, next) {
+    const schema = Joi.object({
+        theme: Joi.string().valid(Actions.Theme1, Actions.Theme2).optional(),
+        notifications: Joi.boolean().optional(),
+        language: Joi.string().valid(Actions.Lang1, Actions.Lang2).optional()
+    });
+    validateRequest(req, next, schema);
+}
+
+//===================Change Password Function=======================================
+function changePass(req, res, next) {
+    userService.changePass(req.params.id, req.body)
+    .then(() => res.json({ message: 'Password updated' }))
+    .catch(next);
+}
+function changePassSchema(req, res, next) {
+    const schema = Joi.object({
+        currentPassword: Joi.string().min(6).required(),
+        newPassword: Joi.string().min(6).empty('').required(),
+        confirmPassword: Joi.string().valid(Joi.ref('newPassword')).empty('').required()
+    })
+    validateRequest(req, next, schema);
+}
+//====================Login with Token Function=========================
+function login(req, res, next) {
+    userService.login(req.body)
+        .then(({ token }) => res.json({ token }))
+        .catch(next);
+}
+function loginSchema(req, res, next) {
+    const schema = Joi.object({
+        email: Joi.string().email().required(),
+        password: Joi.string().required()
+    });
+    validateRequest(req, next, schema);
+}
+
+function deactivateUser(req, res, next) {
+    userService.deactivate(req.params.id)
+        .then(() => res.json({ message: 'User deactivated successfully' }))
+        .catch(next);
+}
+
+function reactivateUser(req, res, next) {
+    userService.reactivate(req.params.id)
+        .then(() => res.json({ message: 'User reactivated successfully' }))
+        .catch(next);
+}
+//===================Logging Function=======================================
+function getActivities(req, res, next) {
+    const filters = {
+        action: req.query.action,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate
+    };
+    userService.getUserActivities(req.params.id, filters)
+        .then(activities => res.json(activities))
+        .catch(next);
+}
 
 //--------------------------------- search route ------------------------------------------
 
 function search(req, res, next) {
-    const { email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin } = req.query;
+    const { email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin} = req.query;
 
     if (!email && !title && !firstName && !lastName && !role && !fullName && !status && !dateCreated && !lastDateLogin) {
         return res.status(400).json({ message: 'At least one search term is required' });
     }
 
-    userService.search({ email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin })
+    userService.search({ email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin})
         .then(users => res.json(users))  // 'users' will now include 'fullName'
         .catch(next);
 }
@@ -114,36 +187,5 @@ function searchAll(req, res, next) {
 
     userService.searchAll(query)
         .then(users => res.json(users))
-        .catch(next);
-}
-
-//========================================== Deactivate & Reactivate =====================================================
-
-function deactivateUser(req, res, next) {
-    userService.deactivate(req.params.id)
-        .then(() => res.json({ message: 'User deactivated' }))
-        .catch(next);
-}
-
-function reactivateUser(req, res, next) {
-    userService.reactivate(req.params.id)
-        .then(() => res.json({ message: 'User reactivated' }))
-        .catch(next);
-}
-
-function validateRequestBody(req, res, next) {
-    validateRequest(req, next, loginSchema);
-    
-}
-const loginSchema = Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
-});
-
-function login(req, res, next) {
-    const { email, password } = req.body;
-
-    userService.authenticate(email, password)
-        .then(user => res.json({ message: 'Login successful', user }))
         .catch(next);
 }

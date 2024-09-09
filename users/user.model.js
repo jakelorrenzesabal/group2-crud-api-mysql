@@ -4,6 +4,7 @@ module.exports = model;
 
 function model(sequelize) {
     const attributes = {
+        //======For Profile=================
         email: { type: DataTypes.STRING, allowNull: false },
         passwordHash: { type: DataTypes.STRING, allowNull: false },
         title: { type: DataTypes.STRING, allowNull: false },
@@ -11,13 +12,28 @@ function model(sequelize) {
         lastName: { type: DataTypes.STRING, allowNull: false },
         role: { type: DataTypes.STRING, allowNull: false },
         profilePic: { type: DataTypes.STRING, allowNull: false },
-        lastDateLogin: { type: DataTypes.DATE, allowNull: true },
-        isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
+
+        //======For Preferences=================
+        theme: { type: DataTypes.STRING, allowNull: true, defaultValue: 'light' },
+        notifications: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: true },
+        language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
+
+        //======For Logging=================
+        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
+        status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active'},
+
+          // Date last logged in
+        lastDateLogin: { type: DataTypes.DATE, allowNull: true }
+    
+
     };
     
     const options = {
         defaultScope: {
-            attributes: { exclude: ['passwordHash'] }
+            attributes: { exclude: ['passwordHash'] },
+            attributes2: { exclude: 
+                ['theme', 'notifications', 'language']
+            }
         },
         scopes: {
             withHash: { attributes: {} }
