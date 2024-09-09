@@ -19,7 +19,12 @@ function model(sequelize) {
         language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
 
         //======For Logging=================
-        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] }
+        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
+        status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active'},
+
+          // Date last logged in
+        lastDateLogin: { type: DataTypes.DATE, allowNull: true }
+    
 
     };
     

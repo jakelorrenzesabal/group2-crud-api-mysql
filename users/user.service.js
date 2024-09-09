@@ -19,7 +19,9 @@ module.exports = {
 
     login,
     logActivity,
-    getUserActivities
+    getUserActivities,
+    deactivate,
+    reactivate
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -121,6 +123,16 @@ async function search(params) {
     if (params.role) {
         whereClause.role = { [Op.like]: `%${params.role}%` };
     }
+    if (params.status) {
+        whereClause.status = params.status;
+    }
+    if (params.dateCreated) {
+        whereClause.createdAt = { [Op.eq]: new Date(params.dateCreated) }; 
+    }
+
+    if (params.lastDateLogin) {
+        whereClause.lastDateLogin = { [Op.eq]: new Date(params.lastDateLogin) }; 
+    }
 
     const users = await db.User.findAll({
         where: whereClause
@@ -158,6 +170,9 @@ async function changePass(id, params) {
 async function login(params) {
     const user = await db.User.scope('withHash').findOne({ where: { email: params.email } });
     if (!user) throw 'User does not exist';
+    
+    // Check if the user's account is active
+    if (user.status === 'deactivated') throw 'Account is deactivated';
 
     const isPasswordValid = await bcrypt.compare(params.password, user.passwordHash);
     if (!isPasswordValid) throw 'Password Incorrect';
@@ -165,9 +180,37 @@ async function login(params) {
     const token = jwt.sign({ id: params.id, email: params.email, firstName: params.firstName }, 
         process.env.SECRET, {});
 
+        user.lastDateLogin = new Date();  // Set current date and time
+        await user.save();
+        
     await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
 
     return { token };
+}
+//------------------------- Deactivate User -------------------------
+async function deactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
+
+    // Check if the user is already deactivated
+    if (user.status === 'deactivated') throw 'User is already deactivated';
+
+    // Set status to 'deactivated' and save
+    user.status = 'deactivated';
+    await user.save();
+}
+
+//------------------------- Reactivate User -------------------------
+async function reactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
+
+    // Check if the user is already active
+    if (user.status === 'active') throw 'User is already active';
+
+    // Set status to 'active' and save
+    user.status = 'active';
+    await user.save();
 }
 //===================Logging function==============================
 async function logActivity(userId, action, ipAddress, browserInfo) {

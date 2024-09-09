@@ -24,6 +24,9 @@ router.put('/:id/password', changePassSchema, changePass);
 router.post('/login', loginSchema, login);
 router.get('/:id/activity', getActivities);
 
+router.put('/:id/deactivate', deactivateUser);
+router.put('/:id/reactivate', reactivateUser);
+
 
 module.exports = router;
 
@@ -138,6 +141,18 @@ function loginSchema(req, res, next) {
     });
     validateRequest(req, next, schema);
 }
+
+function deactivateUser(req, res, next) {
+    userService.deactivate(req.params.id)
+        .then(() => res.json({ message: 'User deactivated successfully' }))
+        .catch(next);
+}
+
+function reactivateUser(req, res, next) {
+    userService.reactivate(req.params.id)
+        .then(() => res.json({ message: 'User reactivated successfully' }))
+        .catch(next);
+}
 //===================Logging Function=======================================
 function getActivities(req, res, next) {
     const filters = {
@@ -153,13 +168,13 @@ function getActivities(req, res, next) {
 //--------------------------------- search route ------------------------------------------
 
 function search(req, res, next) {
-    const { email, title, firstName, lastName, role, fullName } = req.query;
+    const { email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin} = req.query;
 
-    if (!email && !title && !firstName && !lastName && !role && !fullName) {
+    if (!email && !title && !firstName && !lastName && !role && !fullName && !status && !dateCreated && !lastDateLogin) {
         return res.status(400).json({ message: 'At least one search term is required' });
     }
 
-    userService.search({ email, title, firstName, lastName, role, fullName })
+    userService.search({ email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin})
         .then(users => res.json(users))  // 'users' will now include 'fullName'
         .catch(next);
 }
