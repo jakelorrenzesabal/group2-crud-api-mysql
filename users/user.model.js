@@ -23,7 +23,12 @@ function model(sequelize) {
         status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active'},
 
           // Date last logged in
-        lastDateLogin: { type: DataTypes.DATE, allowNull: true }
+        lastDateLogin: { type: DataTypes.DATE, allowNull: true },
+
+        //++++++++++++For Permission++++++++++++++++
+        permission: { type: DataTypes.STRING, allowNull: true, defaultValue: 'Revoke' },
+        privileges: { type: DataTypes.STRING, allowNull: true },
+        securable: { type: DataTypes.STRING, allowNull: true }
     
 
     };

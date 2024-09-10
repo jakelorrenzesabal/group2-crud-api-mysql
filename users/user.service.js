@@ -21,7 +21,10 @@ module.exports = {
     logActivity,
     getUserActivities,
     deactivate,
-    reactivate
+    reactivate,
+
+    getPermission,
+    createPermission
 };
 
 //----------------------------------- Get all users -----------------------------------
@@ -257,4 +260,18 @@ async function getUserActivities(userId, filters = {}) {
     }
 
     return activities;
+}
+
+//++++++++++++++++++++Permission Function+++++++++++++++++++++++++++++++++++++++++
+async function getPermission(id, params) {
+    const permision = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'permission', 'privileges', 'securable'] });
+    if (!permision) throw 'User not found';
+    return permision;
+}
+async function createPermission(id, params) {
+    const permision = await db.User.findOne({ where: { id } });
+    if (!permision) throw 'User not found';
+
+    Object.assign(permision, params);
+    await permision.save();
 }
