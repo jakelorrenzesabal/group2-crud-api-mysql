@@ -4,6 +4,7 @@ const Joi = require('joi');
 const validateRequest = require('_middleware/validate-request');
 const Role = require('_helpers/role');
 const userService = require('./user.service');
+const Actions = require('_helpers/actions');
 
 router.get('/', getAll); 
 router.get('/search', search);
@@ -22,6 +23,7 @@ router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
 router.put('/:id/password', changePassSchema, changePass);
 
 router.post('/login', loginSchema, login);
+router.post('/:id/logout', logout);
 router.get('/:id/activity', getActivities);
 
 router.put('/:id/deactivate', deactivateUser);
@@ -82,7 +84,7 @@ function updateSchema(req, res, next) {
     validateRequest(req, next, schema);
 }
 
-//==================================== Update role route ===============================================
+//====================Update role route===============================================
 function updateRole(req, res, next) {
     userService.update(req.params.id, req.body)
     .then(() => res.json({ message: 'Role updated' }))
@@ -113,7 +115,6 @@ function updatePreferencesSchema(req, res, next) {
     });
     validateRequest(req, next, schema);
 }
-
 //===================Change Password Function=======================================
 function changePass(req, res, next) {
     userService.changePass(req.params.id, req.body)
@@ -141,13 +142,18 @@ function loginSchema(req, res, next) {
     });
     validateRequest(req, next, schema);
 }
-
+//====================Logout Function=========================
+function logout(req, res, next) {
+    userService.logout(req.params.id, ip, browserInfo)
+        .then(response => res.json(response))
+        .catch(next);
+}
+//====================Deactivate & Reactivate Function=========================
 function deactivateUser(req, res, next) {
     userService.deactivate(req.params.id)
         .then(() => res.json({ message: 'User deactivated successfully' }))
         .catch(next);
 }
-
 function reactivateUser(req, res, next) {
     userService.reactivate(req.params.id)
         .then(() => res.json({ message: 'User reactivated successfully' }))
@@ -164,9 +170,7 @@ function getActivities(req, res, next) {
         .then(activities => res.json(activities))
         .catch(next);
 }
-
-//--------------------------------- search route ------------------------------------------
-
+//===================Search Route========================================
 function search(req, res, next) {
     const { email, title, firstName, lastName, role, fullName, status, dateCreated, lastDateLogin} = req.query;
 

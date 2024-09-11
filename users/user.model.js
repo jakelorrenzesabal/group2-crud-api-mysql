@@ -30,9 +30,10 @@ function model(sequelize) {
     
     const options = {
         defaultScope: {
-            attributes: { exclude: ['passwordHash'] },
-            attributes2: { exclude: 
-                ['theme', 'notifications', 'language']
+            attributes: { exclude: [
+                'passwordHash', 
+                'theme', 'notifications', 'language'
+                ] 
             }
         },
         scopes: {

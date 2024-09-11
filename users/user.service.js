@@ -18,23 +18,20 @@ module.exports = {
     changePass,
 
     login,
+    logout,
     logActivity,
     getUserActivities,
     deactivate,
     reactivate
 };
 
-//----------------------------------- Get all users -----------------------------------
+//===============================Simple CRUD========================================
 async function getAll() {
     return await db.User.findAll();
 }
-
-//----------------------------------- Get user by ID -----------------------------------
 async function getById(id) {
     return await getUser(id);
 } 
-
-//------------------------------------ Create users ------------------------------------
 async function create(params) {
     if (await db.User.findOne({ where: { email: params.email } })) {
         throw 'Email "' + params.email + '" is already registered';
@@ -44,8 +41,6 @@ async function create(params) {
     user.passwordHash = await bcrypt.hash(params.password, 10);
     await user.save();
 }
-
-// ------------------------------------ Upadate user by Id ------------------------------
 async function update(id, params) {
     const user = await getUser(id);
 
@@ -61,21 +56,16 @@ async function update(id, params) {
     Object.assign(user, params);
     await user.save();
 }
-
-// ------------------------------------ Delete user by ID --------------------------------
 async function _delete(id) {
     const user = await getUser(id);
     await user.destroy();
 }
-//------------------------------------- Get user by ID and show error message when user is not in the database  ------------------
 async function getUser(id) {
     const user = await db.User.findByPk(id);
     if (!user) throw 'User ad found';
     return user;
 }
-
-//-------------------------------------- Search functions -----------------------------------
-
+//--------------------------Search functions-------------------------------------
 async function searchAll(query) {
     // Perform a case-insensitive search across multiple fields
     const users = await db.User.findAll({
@@ -93,7 +83,6 @@ async function searchAll(query) {
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
 }
-
 async function search(params) {
     // Build dynamic query
     const whereClause = {};
@@ -141,8 +130,31 @@ async function search(params) {
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
 }
+//------------------------- Deactivate User -------------------------
+async function deactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
 
-//===============Preferences Get & Update Function===========================
+    // Check if the user is already deactivated
+    if (user.status === 'deactivated') throw 'User is already deactivated';
+
+    // Set status to 'deactivated' and save
+    user.status = 'deactivated';
+    await user.save();
+}
+//------------------------- Reactivate User -------------------------
+async function reactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
+
+    // Check if the user is already active
+    if (user.status === 'active') throw 'User is already active';
+
+    // Set status to 'active' and save
+    user.status = 'active';
+    await user.save();
+}
+//===================Preferences Get & Update Function===========================
 async function getPreferences(id, params) {
     const preferences = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'theme', 'notifications', 'language' ] });
     if (!preferences) throw 'User not found';
@@ -162,9 +174,14 @@ async function changePass(id, params) {
 
     const isPasswordValid = await bcrypt.compare(params.currentPassword, user.passwordHash);
     if (!isPasswordValid) throw 'Current password is incorrect';
-    user.passwordHash = await bcrypt.hash(params.newPassword, 10);
 
+    user.passwordHash = await bcrypt.hash(params.newPassword, 10);
     await user.save();
+
+    user.lastDateChangePass = new Date();  // Set current date and time
+    await user.save();
+
+    await logActivity(user.id, 'change password', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
 }
 //===================Login wht Token function==============================
 async function login(params) {
@@ -186,31 +203,16 @@ async function login(params) {
     await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
 
     return { token };
-}
-//------------------------- Deactivate User -------------------------
-async function deactivate(id) {
+}s
+//===================Logout function==============================
+async function logout(id, ipAddress, browserInfo) {
     const user = await getUser(id);
     if (!user) throw 'User not found';
 
-    // Check if the user is already deactivated
-    if (user.status === 'deactivated') throw 'User is already deactivated';
+    // Log the logout action
+    await logActivity(id, 'logout', ipAddress || 'Unknown IP', browserInfo || 'Unknown Browser');
 
-    // Set status to 'deactivated' and save
-    user.status = 'deactivated';
-    await user.save();
-}
-
-//------------------------- Reactivate User -------------------------
-async function reactivate(id) {
-    const user = await getUser(id);
-    if (!user) throw 'User not found';
-
-    // Check if the user is already active
-    if (user.status === 'active') throw 'User is already active';
-
-    // Set status to 'active' and save
-    user.status = 'active';
-    await user.save();
+    return { message: 'User logged out successfully' };
 }
 //===================Logging function==============================
 async function logActivity(userId, action, ipAddress, browserInfo) {
@@ -230,7 +232,7 @@ async function logActivity(userId, action, ipAddress, browserInfo) {
         const updatedLogs = user.activityLogs || [];
         updatedLogs.push(logEntry);
 
-        // Limit the log size if needed (e.g., keep only the latest 50 logs)
+        //Limit the log size if needed (e.g., keep only the latest 50 logs)
         if (updatedLogs.length > 50) {
             updatedLogs.shift(); // Remove the oldest log entry
         }
