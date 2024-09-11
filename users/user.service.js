@@ -51,6 +51,9 @@ async function create(params) {
 // ------------------------------------ Upadate user by Id ------------------------------
 async function update(id, params) {
     const user = await getUser(id);
+    
+    const oldData = user.toJSON(); // Get current user data as plain object
+    const updatedFields = []; // Declare updatedFields array
 
     const usernameChanged = params.username && user.username !== params.username;
     if (usernameChanged && await db.User.findOne({ where: { username: params.username } })) {
@@ -60,9 +63,28 @@ async function update(id, params) {
     if (params.password) {
         params.passwordHash = await bcrypt.hash(params.password, 10);
     }
-    
+
+     // Check which fields have changed
+     for (const key in params) {
+        if (params.hasOwnProperty(key) && oldData[key] !== params[key]) {
+            updatedFields.push(`${key}: ${oldData[key]} -> ${params[key]}`);
+        }
+    }
+
     Object.assign(user, params);
-    await user.save();
+    try {
+        // Save updated user
+        await user.save();
+
+        // Log activity with updated fields
+        const updateDetails = updatedFields.length > 0 
+            ? `Updated fields: ${updatedFields.join(', ')}`
+            : 'No fields changed';
+
+        await logActivity(user.id, 'update', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser', updateDetails);
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 }
 
 // ------------------------------------ Delete user by ID --------------------------------
@@ -185,8 +207,12 @@ async function login(params) {
 
         user.lastDateLogin = new Date();  // Set current date and time
         await user.save();
-        
-    await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+
+        try {
+        await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 
     return { token };
 }
@@ -216,49 +242,63 @@ async function reactivate(id) {
     await user.save();
 }
 //===================Logging function==============================
-async function logActivity(userId, action, ipAddress, browserInfo) {
+async function logActivity(userId, actionType, ipAddress, browserInfo, updateDetails = '') {
     try {
-        const user = await db.User.findByPk(userId);
-        if (!user) throw 'User not found';
+        // Create a new log entry in the 'activity_log' table
+        await db.ActivityLog.create({
+            userId,
+            actionType,
+            actionDetails: `IP Address: ${ipAddress}, Browser Info: ${browserInfo}, Details: ${updateDetails}`,
+            timestamp: new Date()
+        });
 
-        // Create a new log entry
-        const logEntry = {
-            action,
-            timestamp: new Date(),
-            ipAddress,
-            browserInfo
-        };
+        // Count the number of logs for the user
+        const logCount = await db.ActivityLog.count({ where: { userId } });
 
-        // Update the user's activity logs
-        const updatedLogs = user.activityLogs || [];
-        updatedLogs.push(logEntry);
+        if (logCount > 10) {
+            // Find and delete the oldest logs
+            const logsToDelete = await db.ActivityLog.findAll({
+                where: { userId },
+                order: [['timestamp', 'ASC']], 
+                limit: logCount - 10 
+            });
 
-        // Limit the log size if needed (e.g., keep only the latest 50 logs)
-        if (updatedLogs.length > 50) {
-            updatedLogs.shift(); // Remove the oldest log entry
+            if (logsToDelete.length > 0) {
+                const logIdsToDelete = logsToDelete.map(log => log.id);
+
+                await db.ActivityLog.destroy({
+                    where: {
+                        id: {
+                            [Op.in]: logIdsToDelete
+                        }
+                    }
+                });
+                console.log(`Deleted ${logIdsToDelete.length} oldest log(s) for user ${userId}.`);
+            }
         }
-
-        user.activityLogs = updatedLogs;
-        await user.save();
     } catch (error) {
         console.error('Error logging activity:', error);
         throw error;
     }
 }
+
 async function getUserActivities(userId, filters = {}) {
     const user = await getUser(userId);
-    let activities = user.activityLogs || [];
+    if (!user) throw new Error('User not found');
+
+    let whereClause = { userId };
 
     // Apply optional filters such as action type and timestamp range
-    if (filters.action) {
-        activities = activities.filter(log => log.action === filters.action);
+    if (filters.actionType) {
+        whereClause.actionType = filters.actionType;
     }
     if (filters.startDate || filters.endDate) {
         const startDate = filters.startDate ? new Date(filters.startDate) : new Date(0);
         const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
-        activities = activities.filter(log => new Date(log.timestamp) >= startDate && new Date(log.timestamp) <= endDate);
+        whereClause.timestamp = { [Op.between]: [startDate, endDate] };
     }
 
+    const activities = await db.ActivityLog.findAll({ where: whereClause });
     return activities;
 }
 

@@ -19,7 +19,6 @@ function model(sequelize) {
         language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
 
         //======For Logging=================
-        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
         status: { type: DataTypes.ENUM('deactivated', 'active'), allowNull: false, defaultValue: 'active'},
 
           // Date last logged in
