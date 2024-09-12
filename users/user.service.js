@@ -203,7 +203,7 @@ async function login(params) {
     await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
 
     return { token };
-}s
+}
 //===================Logout function==============================
 async function logout(id, ipAddress, browserInfo) {
     const user = await getUser(id);
