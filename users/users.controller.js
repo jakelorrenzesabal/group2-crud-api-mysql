@@ -15,7 +15,6 @@ router.put('/:id', updateSchema, update);
 router.delete('/:id', _delete);
 
 router.put('/:id/role', updateRoleSchema, updateRole);
-router.get('/:id/permissions', getById);
 
 router.get('/:id/preferences', getPreferences);
 router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
@@ -28,6 +27,9 @@ router.get('/:id/activity', getActivities);
 
 router.put('/:id/deactivate', deactivateUser);
 router.put('/:id/reactivate', reactivateUser);
+
+router.get('/:id/permission', getPermission);
+router.post('/:id/permission', createPermission);
 
 
 module.exports = router;
@@ -191,5 +193,16 @@ function searchAll(req, res, next) {
 
     userService.searchAll(query)
         .then(users => res.json(users))
+        .catch(next);
+}
+//===================Permission Route========================================
+function getPermission(req, res, next) {
+    userService.getPermission(req.params.id)
+        .then(permission => res.json(permission))
+        .catch(next);
+}
+function createPermission(req, res, next) {
+    userService.updatePreferences(req.params.id, req.body)
+        .then(() => res.json({ message: 'Access confirm' }))
         .catch(next);
 }

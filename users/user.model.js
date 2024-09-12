@@ -21,9 +21,10 @@ function model(sequelize) {
         //======For Logging=================
         activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
         status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active'},
+        lastDateLogin: { type: DataTypes.DATE, allowNull: true },
 
-          // Date last logged in
-        lastDateLogin: { type: DataTypes.DATE, allowNull: true }
+        //======For Permission=================
+        permission: { type: DataTypes.ENUM('grant', 'revoke'), allowNull: false, defaultValue: 'revoke'}
     
 
     };
