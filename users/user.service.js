@@ -18,6 +18,7 @@ module.exports = {
     changePass,
 
     login,
+    logout,
     logActivity,
     getUserActivities,
     deactivate,
@@ -27,17 +28,13 @@ module.exports = {
     createPermission
 };
 
-//----------------------------------- Get all users -----------------------------------
+//===============================Simple CRUD========================================
 async function getAll() {
     return await db.User.findAll();
 }
-
-//----------------------------------- Get user by ID -----------------------------------
 async function getById(id) {
     return await getUser(id);
 } 
-
-//------------------------------------ Create users ------------------------------------
 async function create(params) {
     if (await db.User.findOne({ where: { email: params.email } })) {
         throw 'Email "' + params.email + '" is already registered';
@@ -47,38 +44,41 @@ async function create(params) {
     user.passwordHash = await bcrypt.hash(params.password, 10);
     await user.save();
 }
-
-// ------------------------------------ Upadate user by Id ------------------------------
 async function update(id, params) {
     const user = await getUser(id);
-    
-    const oldData = user.toJSON(); // Get current user data as plain object
+    const oldData = user.toJSON(); // Get current user data as a plain object
     const updatedFields = []; // Declare updatedFields array
+
+    // Exclude `ipAddress` and `browserInfo` from comparison if they're not part of user data
+    const nonUserFields = ['ipAddress', 'browserInfo'];
 
     const usernameChanged = params.username && user.username !== params.username;
     if (usernameChanged && await db.User.findOne({ where: { username: params.username } })) {
         throw 'Username "' + params.username + '" is already taken';
     }
-    
+
     if (params.password) {
         params.passwordHash = await bcrypt.hash(params.password, 10);
     }
 
-     // Check which fields have changed
-     for (const key in params) {
-        if (params.hasOwnProperty(key) && oldData[key] !== params[key]) {
-            updatedFields.push(`${key}: ${oldData[key]} -> ${params[key]}`);
+    // Check which fields have changed, excluding `ipAddress` and `browserInfo` from comparison
+    for (const key in params) {
+        if (params.hasOwnProperty(key) && !nonUserFields.includes(key)) {
+            if (oldData[key] !== params[key]) {
+                updatedFields.push(`${key}: ${oldData[key]} -> ${params[key]}`);
+            }
         }
     }
 
     Object.assign(user, params);
+
     try {
-        // Save updated user
+
         await user.save();
 
         // Log activity with updated fields
         const updateDetails = updatedFields.length > 0 
-            ? `Updated fields: ${updatedFields.join(', ')}`
+            ? `Updated fields: ${updatedFields.join(', ')}` 
             : 'No fields changed';
 
         await logActivity(user.id, 'update', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser', updateDetails);
@@ -92,15 +92,12 @@ async function _delete(id) {
     const user = await getUser(id);
     await user.destroy();
 }
-//------------------------------------- Get user by ID and show error message when user is not in the database  ------------------
 async function getUser(id) {
     const user = await db.User.findByPk(id);
     if (!user) throw 'User ad found';
     return user;
 }
-
-//-------------------------------------- Search functions -----------------------------------
-
+//--------------------------Search functions-------------------------------------
 async function searchAll(query) {
     // Perform a case-insensitive search across multiple fields
     const users = await db.User.findAll({
@@ -118,7 +115,6 @@ async function searchAll(query) {
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
 }
-
 async function search(params) {
     // Build dynamic query
     const whereClause = {};
@@ -166,8 +162,31 @@ async function search(params) {
     if (users.length === 0) throw new Error('No users found matching the search criteria');
     return users;
 }
+//------------------------- Deactivate User -------------------------
+async function deactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
 
-//===============Preferences Get & Update Function===========================
+    // Check if the user is already deactivated
+    if (user.status === 'deactivated') throw 'User is already deactivated';
+
+    // Set status to 'deactivated' and save
+    user.status = 'deactivated';
+    await user.save();
+}
+//------------------------- Reactivate User -------------------------
+async function reactivate(id) {
+    const user = await getUser(id);
+    if (!user) throw 'User not found';
+
+    // Check if the user is already active
+    if (user.status === 'active') throw 'User is already active';
+
+    // Set status to 'active' and save
+    user.status = 'active';
+    await user.save();
+}
+//===================Preferences Get & Update Function===========================
 async function getPreferences(id, params) {
     const preferences = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'theme', 'notifications', 'language' ] });
     if (!preferences) throw 'User not found';
@@ -185,11 +204,30 @@ async function changePass(id, params) {
     const user = await db.User.scope('withHash').findOne({ where: { id } });
     if (!user) throw 'User does not exist';
 
+    
     const isPasswordValid = await bcrypt.compare(params.currentPassword, user.passwordHash);
     if (!isPasswordValid) throw 'Current password is incorrect';
+
+    
+    const isSamePassword = await bcrypt.compare(params.newPassword, user.passwordHash);
+    if (isSamePassword) throw 'New password cannot be the same as the current password';
+
+    
+    if (params.newPassword !== params.confirmPassword) throw 'New password and confirm password do not match';
+
+    
     user.passwordHash = await bcrypt.hash(params.newPassword, 10);
 
+    user.lastDateChangePass = new Date();
+    
+    // Save the user
     await user.save();
+
+    try {
+        await logActivity(user.id, 'change pass', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 }
 //===================Login wht Token function==============================
 async function login(params) {
@@ -216,30 +254,25 @@ async function login(params) {
 
     return { token };
 }
-//------------------------- Deactivate User -------------------------
-async function deactivate(id) {
-    const user = await getUser(id);
-    if (!user) throw 'User not found';
+//===================Logout function==============================
+async function logout(id, params) {
+    const user = await db.User.findByPk(id);
+    if (!user) throw new Error('User not found');
 
-    // Check if the user is already deactivated
-    if (user.status === 'deactivated') throw 'User is already deactivated';
+    try {
+        // Log the user logout activity with IP and browser info
+        await logActivity(
+            user.id,
+            'logout',
+            params.ipAddress || 'Unknown IP',
+            params.browserInfo || 'Unknown Browser',
+            'User logged out'
+        );
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 
-    // Set status to 'deactivated' and save
-    user.status = 'deactivated';
-    await user.save();
-}
-
-//------------------------- Reactivate User -------------------------
-async function reactivate(id) {
-    const user = await getUser(id);
-    if (!user) throw 'User not found';
-
-    // Check if the user is already active
-    if (user.status === 'active') throw 'User is already active';
-
-    // Set status to 'active' and save
-    user.status = 'active';
-    await user.save();
+    return { message: 'User logged out successfully' };
 }
 //===================Logging function==============================
 async function logActivity(userId, actionType, ipAddress, browserInfo, updateDetails = '') {
@@ -298,10 +331,14 @@ async function getUserActivities(userId, filters = {}) {
         whereClause.timestamp = { [Op.between]: [startDate, endDate] };
     }
 
-    const activities = await db.ActivityLog.findAll({ where: whereClause });
-    return activities;
+    try {
+        const activities = await db.ActivityLog.findAll({ where: whereClause });
+        return activities;
+    } catch (error) {
+        console.error('Error retrieving activities:', error);
+        throw new Error('Error retrieving activities');
+    }
 }
-
 //++++++++++++++++++++Permission Function+++++++++++++++++++++++++++++++++++++++++
 async function getPermission(id, params) {
     const permision = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'permission', 'privileges', 'securable'] });
