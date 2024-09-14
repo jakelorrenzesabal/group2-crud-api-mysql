@@ -323,7 +323,7 @@ async function getUserActivities(userId, filters = {}) {
 
     // Apply optional filters such as action type and timestamp range
     if (filters.actionType) {
-        whereClause.actionType = filters.actionType;
+        whereClause.actionType = { [Op.like]: `%${filters.actionType}%` }; // Use Op.like for partial match
     }
     if (filters.startDate || filters.endDate) {
         const startDate = filters.startDate ? new Date(filters.startDate) : new Date(0);
