@@ -4,7 +4,6 @@ const Joi = require('joi');
 const validateRequest = require('_middleware/validate-request');
 const Role = require('_helpers/role');
 const userService = require('./user.service');
-const Actions = require('_helpers/actions');
 
 router.get('/', getAll); 
 router.get('/search', search);
@@ -17,7 +16,7 @@ router.delete('/:id', _delete);
 router.put('/:id/role', updateRoleSchema, updateRole);
 
 router.get('/:id/preferences', getPreferences);
-router.put('/:id/preferences', updatePreferencesSchema, updatePreferences);
+router.put('/:id/preferences', updatePreferences);
 
 router.put('/:id/password', changePassSchema, changePass);
 
@@ -29,7 +28,7 @@ router.put('/:id/deactivate', deactivateUser);
 router.put('/:id/reactivate', reactivateUser);
 
 router.get('/:id/permission', getPermission);
-router.post('/:id/permission', createPermissionSchema, createPermission);
+router.post('/:id/permission', createPermission);
 
 
 module.exports = router;
@@ -115,14 +114,6 @@ function updatePreferences(req, res, next) {
     userService.updatePreferences(req.params.id, req.body)
         .then(() => res.json({ message: 'Preferences updated successfully' }))
         .catch(next);
-}
-function updatePreferencesSchema(req, res, next) {
-    const schema = Joi.object({
-        theme: Joi.string().valid(Actions.Theme1, Actions.Theme2).optional(),
-        notifications: Joi.boolean().optional(),
-        language: Joi.string().valid(Actions.Lang1, Actions.Lang2).optional()
-    });
-    validateRequest(req, next, schema);
 }
 //===================Change Password Function=======================================
 function changePass(req, res, next) {
@@ -214,8 +205,7 @@ function searchAll(req, res, next) {
         .then(users => res.json(users))
         .catch(next);
 }
-
-//++++++++++++++++++Permission Router++++++++++++++++++++
+//===================Permission Route========================================
 function getPermission(req, res, next) {
     userService.getPermission(req.params.id)
         .then(permission => res.json(permission))
@@ -225,12 +215,4 @@ function createPermission(req, res, next) {
     userService.updatePreferences(req.params.id, req.body)
         .then(() => res.json({ message: 'Access confirm' }))
         .catch(next);
-}
-function createPermissionSchema(req, res, next) {
-    const schema = Joi.object({
-        permission: Joi.string().valid(Actions.Grant, Actions.Revoke).optional(),
-        privileges: Joi.string().valid(Actions.Privilege1, Actions.Privilege2, Actions.Privilege3, Actions.Privilege4, Actions.Privilege5).optional(),
-        securable: Joi.string().optional()
-    });
-    validateRequest(req, next, schema);
 }

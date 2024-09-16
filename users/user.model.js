@@ -14,20 +14,17 @@ function model(sequelize) {
         profilePic: { type: DataTypes.STRING, allowNull: false },
 
         //======For Preferences=================
-        theme: { type: DataTypes.STRING, allowNull: true, defaultValue: 'light' },
+        theme: { type: DataTypes.ENUM('light', 'dark'), allowNull: false, defaultValue: 'light' },
         notifications: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: true },
-        language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
+        language: { type: DataTypes.ENUM('en', 'fr'), allowNull: false, defaultValue: 'en' },
 
         //======For Logging=================
-        status: { type: DataTypes.ENUM('deactivated', 'active'), allowNull: false, defaultValue: 'active'},
-
-          // Date last logged in
+        activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
+        status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active'},
         lastDateLogin: { type: DataTypes.DATE, allowNull: true },
 
-        //++++++++++++For Permission++++++++++++++++
-        permission: { type: DataTypes.STRING, allowNull: true, defaultValue: 'Revoke' },
-        privileges: { type: DataTypes.STRING, allowNull: true },
-        securable: { type: DataTypes.STRING, allowNull: true }
+        //======For Permission=================
+        permission: { type: DataTypes.ENUM('grant', 'revoke'), allowNull: false, defaultValue: 'revoke'}
     
 
     };
