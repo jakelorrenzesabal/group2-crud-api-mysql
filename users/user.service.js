@@ -86,6 +86,8 @@ async function update(id, params) {
         console.error('Error logging activity:', error);
     }
 }
+
+// ------------------------------------ Delete user by ID --------------------------------
 async function _delete(id) {
     const user = await getUser(id);
     await user.destroy();
@@ -312,6 +314,7 @@ async function logActivity(userId, actionType, ipAddress, browserInfo, updateDet
         throw error;
     }
 }
+
 async function getUserActivities(userId, filters = {}) {
     const user = await getUser(userId);
     if (!user) throw new Error('User not found');
@@ -327,7 +330,15 @@ async function getUserActivities(userId, filters = {}) {
         const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
         whereClause.timestamp = { [Op.between]: [startDate, endDate] };
     }
-    return activities;
+
+    try {
+        const activities = await db.ActivityLog.findAll({ where: whereClause });
+        return activities;
+    } catch (error) {
+        console.error('Error retrieving activities:', error);
+        throw new Error('Error retrieving activities');
+    }
+
 }
 //===================Permission function==============================
 async function getPermission(id, params) {
@@ -342,11 +353,5 @@ async function createPermission(id, params) {
 
     Object.assign(permission, params); 
     await permission.save();
-    try {
-        const activities = await db.ActivityLog.findAll({ where: whereClause });
-        return activities;
-    } catch (error) {
-        console.error('Error retrieving activities:', error);
-        throw new Error('Error retrieving activities');
-    }
+  
 }
