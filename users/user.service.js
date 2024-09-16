@@ -86,8 +86,6 @@ async function update(id, params) {
         console.error('Error logging activity:', error);
     }
 }
-
-// ------------------------------------ Delete user by ID --------------------------------
 async function _delete(id) {
     const user = await getUser(id);
     await user.destroy();
@@ -314,7 +312,6 @@ async function logActivity(userId, actionType, ipAddress, browserInfo, updateDet
         throw error;
     }
 }
-
 async function getUserActivities(userId, filters = {}) {
     const user = await getUser(userId);
     if (!user) throw new Error('User not found');
@@ -332,7 +329,6 @@ async function getUserActivities(userId, filters = {}) {
     }
     return activities;
 }
-
 //===================Permission function==============================
 async function getPermission(id, params) {
     const permission = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'permission', 'updatedAt'] });
@@ -353,17 +349,4 @@ async function createPermission(id, params) {
         console.error('Error retrieving activities:', error);
         throw new Error('Error retrieving activities');
     }
-}
-//++++++++++++++++++++Permission Function+++++++++++++++++++++++++++++++++++++++++
-async function getPermission(id, params) {
-    const permision = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'permission', 'privileges', 'securable'] });
-    if (!permision) throw 'User not found';
-    return permision;
-}
-async function createPermission(id, params) {
-    const permision = await db.User.findOne({ where: { id } });
-    if (!permision) throw 'User not found';
-
-    Object.assign(permision, params);
-    await permision.save();
 }
