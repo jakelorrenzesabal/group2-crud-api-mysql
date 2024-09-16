@@ -14,9 +14,9 @@ function model(sequelize) {
         profilePic: { type: DataTypes.STRING, allowNull: false },
 
         //======For Preferences=================
-        theme: { type: DataTypes.STRING, allowNull: true, defaultValue: 'light' },
+        theme: { type: DataTypes.ENUM('light', 'dark'), allowNull: false, defaultValue: 'light' },
         notifications: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: true },
-        language: { type: DataTypes.STRING, allowNull: true, defaultValue: 'en' },
+        language: { type: DataTypes.ENUM('en', 'fr'), allowNull: false, defaultValue: 'en' },
 
         //======For Logging=================
         activityLogs: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },

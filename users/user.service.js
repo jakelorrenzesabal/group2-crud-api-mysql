@@ -46,19 +46,48 @@ async function create(params) {
 }
 async function update(id, params) {
     const user = await getUser(id);
+    const oldData = user.toJSON(); // Get current user data as a plain object
+    const updatedFields = []; // Declare updatedFields array
+
+    // Exclude `ipAddress` and `browserInfo` from comparison if they're not part of user data
+    const nonUserFields = ['ipAddress', 'browserInfo'];
 
     const usernameChanged = params.username && user.username !== params.username;
     if (usernameChanged && await db.User.findOne({ where: { username: params.username } })) {
         throw 'Username "' + params.username + '" is already taken';
     }
-    
+
     if (params.password) {
         params.passwordHash = await bcrypt.hash(params.password, 10);
     }
-    
+
+    // Check which fields have changed, excluding `ipAddress` and `browserInfo` from comparison
+    for (const key in params) {
+        if (params.hasOwnProperty(key) && !nonUserFields.includes(key)) {
+            if (oldData[key] !== params[key]) {
+                updatedFields.push(`${key}: ${oldData[key]} -> ${params[key]}`);
+            }
+        }
+    }
+
     Object.assign(user, params);
-    await user.save();
+
+    try {
+
+        await user.save();
+
+        // Log activity with updated fields
+        const updateDetails = updatedFields.length > 0 
+            ? `Updated fields: ${updatedFields.join(', ')}` 
+            : 'No fields changed';
+
+        await logActivity(user.id, 'update', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser', updateDetails);
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 }
+
+// ------------------------------------ Delete user by ID --------------------------------
 async function _delete(id) {
     const user = await getUser(id);
     await user.destroy();
@@ -175,16 +204,30 @@ async function changePass(id, params) {
     const user = await db.User.scope('withHash').findOne({ where: { id } });
     if (!user) throw 'User does not exist';
 
+    
     const isPasswordValid = await bcrypt.compare(params.currentPassword, user.passwordHash);
     if (!isPasswordValid) throw 'Current password is incorrect';
 
+    
+    const isSamePassword = await bcrypt.compare(params.newPassword, user.passwordHash);
+    if (isSamePassword) throw 'New password cannot be the same as the current password';
+
+    
+    if (params.newPassword !== params.confirmPassword) throw 'New password and confirm password do not match';
+
+    
     user.passwordHash = await bcrypt.hash(params.newPassword, 10);
+
+    user.lastDateChangePass = new Date();
+    
+    // Save the user
     await user.save();
 
-    user.lastDateChangePass = new Date();  // Set current date and time
-    await user.save();
-
-    await logActivity(user.id, 'change password', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+    try {
+        await logActivity(user.id, 'change pass', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 }
 //===================Login wht Token function==============================
 async function login(params) {
@@ -202,65 +245,91 @@ async function login(params) {
 
         user.lastDateLogin = new Date();  // Set current date and time
         await user.save();
-        
-    await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+
+        try {
+        await logActivity(user.id, 'login', params.ipAddress || 'Unknown IP', params.browserInfo || 'Unknown Browser');
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 
     return { token };
 }
 //===================Logout function==============================
-async function logout(id, ipAddress, browserInfo) {
-    const user = await getUser(id);
-    if (!user) throw 'User not found';
+async function logout(id, params) {
+    const user = await db.User.findByPk(id);
+    if (!user) throw new Error('User not found');
 
-    // Log the logout action
-    await logActivity(id, 'logout', ipAddress || 'Unknown IP', browserInfo || 'Unknown Browser');
+    try {
+        // Log the user logout activity with IP and browser info
+        await logActivity(
+            user.id,
+            'logout',
+            params.ipAddress || 'Unknown IP',
+            params.browserInfo || 'Unknown Browser',
+            'User logged out'
+        );
+    } catch (error) {
+        console.error('Error logging activity:', error);
+    }
 
     return { message: 'User logged out successfully' };
 }
 //===================Logging function==============================
-async function logActivity(userId, action, ipAddress, browserInfo) {
+async function logActivity(userId, actionType, ipAddress, browserInfo, updateDetails = '') {
     try {
-        const user = await db.User.findByPk(userId);
-        if (!user) throw 'User not found';
+        // Create a new log entry in the 'activity_log' table
+        await db.ActivityLog.create({
+            userId,
+            actionType,
+            actionDetails: `IP Address: ${ipAddress}, Browser Info: ${browserInfo}, Details: ${updateDetails}`,
+            timestamp: new Date()
+        });
 
-        // Create a new log entry
-        const logEntry = {
-            action,
-            timestamp: new Date(),
-            ipAddress,
-            browserInfo
-        };
+        // Count the number of logs for the user
+        const logCount = await db.ActivityLog.count({ where: { userId } });
 
-        // Update the user's activity logs
-        const updatedLogs = user.activityLogs || [];
-        updatedLogs.push(logEntry);
+        if (logCount > 10) {
+            // Find and delete the oldest logs
+            const logsToDelete = await db.ActivityLog.findAll({
+                where: { userId },
+                order: [['timestamp', 'ASC']], 
+                limit: logCount - 10 
+            });
 
-        //Limit the log size if needed (e.g., keep only the latest 50 logs)
-        if (updatedLogs.length > 50) {
-            updatedLogs.shift(); // Remove the oldest log entry
+            if (logsToDelete.length > 0) {
+                const logIdsToDelete = logsToDelete.map(log => log.id);
+
+                await db.ActivityLog.destroy({
+                    where: {
+                        id: {
+                            [Op.in]: logIdsToDelete
+                        }
+                    }
+                });
+                console.log(`Deleted ${logIdsToDelete.length} oldest log(s) for user ${userId}.`);
+            }
         }
-
-        user.activityLogs = updatedLogs;
-        await user.save();
     } catch (error) {
         console.error('Error logging activity:', error);
         throw error;
     }
 }
+
 async function getUserActivities(userId, filters = {}) {
     const user = await getUser(userId);
-    let activities = user.activityLogs || [];
+    if (!user) throw new Error('User not found');
+
+    let whereClause = { userId };
 
     // Apply optional filters such as action type and timestamp range
-    if (filters.action) {
-        activities = activities.filter(log => log.action === filters.action);
+    if (filters.actionType) {
+        whereClause.actionType = { [Op.like]: `%${filters.actionType}%` };
     }
     if (filters.startDate || filters.endDate) {
         const startDate = filters.startDate ? new Date(filters.startDate) : new Date(0);
         const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
-        activities = activities.filter(log => new Date(log.timestamp) >= startDate && new Date(log.timestamp) <= endDate);
+        whereClause.timestamp = { [Op.between]: [startDate, endDate] };
     }
-
     return activities;
 }
 
@@ -277,4 +346,24 @@ async function createPermission(id, params) {
 
     Object.assign(permission, params); 
     await permission.save();
+    try {
+        const activities = await db.ActivityLog.findAll({ where: whereClause });
+        return activities;
+    } catch (error) {
+        console.error('Error retrieving activities:', error);
+        throw new Error('Error retrieving activities');
+    }
+}
+//++++++++++++++++++++Permission Function+++++++++++++++++++++++++++++++++++++++++
+async function getPermission(id, params) {
+    const permision = await db.User.findOne({ where: { id: id }, attributes: [ 'id', 'permission', 'privileges', 'securable'] });
+    if (!permision) throw 'User not found';
+    return permision;
+}
+async function createPermission(id, params) {
+    const permision = await db.User.findOne({ where: { id } });
+    if (!permision) throw 'User not found';
+
+    Object.assign(permision, params);
+    await permision.save();
 }

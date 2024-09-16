@@ -50,9 +50,16 @@ function create(req, res, next) {
         .catch(next);
 }
 function update(req, res, next) {
-    userService.update(req.params.id, req.body)
-        .then(() => res.json({ message: 'User updated' }))
-        .catch(next);
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const browserInfo = req.headers['user-agent'] || 'Unknown Browser';
+
+    userService.update(req.params.id, { 
+        ...req.body, 
+        ipAddress, 
+        browserInfo 
+    })
+    .then(() => res.json({ message: 'User updated' }))
+    .catch(next);
 }
 function _delete(req, res, next) {
     userService.delete(req.params.id)
@@ -119,9 +126,13 @@ function updatePreferencesSchema(req, res, next) {
 }
 //===================Change Password Function=======================================
 function changePass(req, res, next) {
+    // Add IP address and browser info to the request body if available
+    req.body.ipAddress = req.ip || 'Unknown IP';
+    req.body.browserInfo = req.get('User-Agent') || 'Unknown Browser';
+
     userService.changePass(req.params.id, req.body)
-    .then(() => res.json({ message: 'Password updated' }))
-    .catch(next);
+        .then(() => res.json({ message: 'Password updated successfully' }))
+        .catch(next);
 }
 function changePassSchema(req, res, next) {
     const schema = Joi.object({
@@ -133,9 +144,12 @@ function changePassSchema(req, res, next) {
 }
 //====================Login with Token Function=========================
 function login(req, res, next) {
-    userService.login(req.body)
-        .then(({ token }) => res.json({ token }))
-        .catch(next);
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const browserInfo = req.headers['user-agent'] || 'Unknown Browser';
+
+    userService.login({ ...req.body, ipAddress, browserInfo })
+    .then(({ token }) => res.json({ token }))
+    .catch(next);
 }
 function loginSchema(req, res, next) {
     const schema = Joi.object({
@@ -146,7 +160,12 @@ function loginSchema(req, res, next) {
 }
 //====================Logout Function=========================
 function logout(req, res, next) {
-    userService.logout(req.params.id, ip, browserInfo)
+    const id = req.params.id; // Extract user ID from the route params
+    const ipAddress = req.ip || 'Unknown IP'; // Extract IP address from the request object
+    const browserInfo = req.headers['user-agent'] || 'Unknown Browser'; // Extract browser info from headers
+
+    // Call the user service with the extracted information
+    userService.logout(id, { ipAddress, browserInfo })
         .then(response => res.json(response))
         .catch(next);
 }
@@ -164,7 +183,7 @@ function reactivateUser(req, res, next) {
 //===================Logging Function=======================================
 function getActivities(req, res, next) {
     const filters = {
-        action: req.query.action,
+        actionType: req.query.actionType,
         startDate: req.query.startDate,
         endDate: req.query.endDate
     };
